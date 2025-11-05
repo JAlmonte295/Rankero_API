@@ -1,5 +1,4 @@
 const mongoose = require('mongoose') ;
-const rank = mongoose.model('Rank', rankSchema);
 
 const listItemSchema = new mongoose.Schema({
     itemName: {
@@ -34,6 +33,7 @@ const rankSchema = new mongoose.Schema(
         category: {
             type: String,
             required: true,
+            enum: ["Games", "Movies", "Television", "Music", "Books", "Food", "Sports", "Travel", "Other"]
         },
         title: {
             type: String,
@@ -68,5 +68,7 @@ const rankSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+const rank = mongoose.model('Rank', rankSchema);
 
 module.exports = rank;

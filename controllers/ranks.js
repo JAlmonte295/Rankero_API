@@ -1,6 +1,7 @@
 const express = require('express');
-const router = express.Router();
+const verifyToken = require('../middleware/verify-token');
 const Rank = require('../models/rank');
+const router = express.Router();
 
 // GET /ranks - Get all ranks
 router.get('/', async (req, res) => {
@@ -8,8 +9,15 @@ router.get('/', async (req, res) => {
 });
 
 // POST /ranks - Create a new rank
-router.post('/', async (req, res) => {
-  // Logic to create a new rank
+router.post('/', verifyToken, async (req, res) => {
+    try {
+        req.body.author = req.user._id;
+        const newRank = await Rank.create(req.body);
+        newRank._doc.author = req.user;
+        res.status(201).json(newRank);
+    } catch (err) {
+        res.status(500).json({ err: err.message });
+    }
 });
 
 // GET /ranks/:id - Get a single rank by ID
