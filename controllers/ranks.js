@@ -5,7 +5,15 @@ const router = express.Router();
 
 // GET /ranks - Get all ranks
 router.get('/', async (req, res) => {
-  // Logic to get all ranks
+  try {
+    const ranks = await Rank.find({})
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .limit(10) // Get only the top 10
+      .populate('author', 'username'); // Populate author's username
+    res.status(200).json(ranks);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
 });
 
 // POST /ranks - Create a new rank
