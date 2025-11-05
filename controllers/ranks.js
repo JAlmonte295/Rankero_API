@@ -74,11 +74,61 @@ router.delete('/:rankId', verifyToken, async (req, res) => {
       return res.status(403).json({ err: 'Unauthorized to delete this rank.' });
     }
     const deleteRank = await Rank.findByIdAndDelete(req.params.rankId);
-    
+
     res.status(200).json(deleteRank);
   } catch (err) {
     res.status(500).json({ err: err.message });
   }
 });
+
+router.post('/:rankId/upvote', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    rank.upvotes++;
+    await rank.save();
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+router.post('/:rankId/downvote', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    rank.downvotes++;
+    await rank.save();
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+router.post('/:rankId/comments', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    req.body.author = req.user._id;
+    rank.comments.push(req.body);
+    await rank.save();
+
+    await rank.populate('comments.author', 'username');
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+// router.delete('/:rankId/comment/:commentId', verifyToken, async (req, res) => {
+//   try {
+//     const rank = await Rank.findById(req.params.rankId);
+//     const comment = rank.comments.id(req.params.commentId);
+
+//     if (!comment) {
+//       return res.status(404).json({ err: 'Comment not found.' });
+//     }
+//     if (!comment.author.equals(req.user._id)) {
+
+//     }
 
 module.exports = router;
