@@ -66,8 +66,19 @@ router.put('/:rankId', verifyToken, async (req, res) => {
 });
 
 // DELETE /ranks/:id - Delete a rank by ID
-router.delete('/:id', async (req, res) => {
-  // Logic to delete a rank
+router.delete('/:rankId', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+
+    if (!rank.author.equals(req.user._id)) {
+      return res.status(403).json({ err: 'Unauthorized to delete this rank.' });
+    }
+    const deleteRank = await Rank.findByIdAndDelete(req.params.rankId);
+    
+    res.status(200).json(deleteRank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
 });
 
 module.exports = router;
