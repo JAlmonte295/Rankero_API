@@ -57,18 +57,16 @@ const rankSchema = new mongoose.Schema(
             ]
         },
         upvotes: {
-            type: Number,
-            default: 0,
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+            default: [],
         },
         downvotes: {
-            type: Number,
-            default: 0,
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+            default: [],
         },
         comments: [commentSchema],
     },
     { timestamps: true }
 );
 
-const rank = mongoose.model('Rank', rankSchema);
-
-module.exports = rank;
+module.exports = mongoose.model('Rank', rankSchema);

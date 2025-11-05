@@ -6,10 +6,41 @@ const router = express.Router();
 // GET /ranks - Get all ranks
 router.get('/', async (req, res) => {
   try {
-    const ranks = await Rank.find({})
-      .sort({ createdAt: -1 }) // Sort by newest first
-      .limit(10) // Get only the top 10
+    const { search, sortBy, page = 1, limit = 10 } = req.query;
+
+    let query = {};
+    if (search) {
+      // Create a case-insensitive regex for searching title and description
+      query = {
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ],
+      };
+    }
+
+    let sortQuery = { createdAt: -1 }; // Default sort: newest first
+    if (sortBy === 'upvotes') {
+      // To sort by upvotes, we use the aggregation pipeline to calculate the size of the upvotes array.
+      const ranks = await Rank.aggregate([
+        { $match: query },
+        { $addFields: { upvoteCount: { $size: '$upvotes' } } },
+        { $sort: { upvoteCount: -1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: parseInt(limit) },
+      ]);
+      // We need to populate the author manually after aggregation
+      await Rank.populate(ranks, { path: 'author', select: 'username' });
+      return res.status(200).json(ranks);
+    }
+
+    // Standard find query for other sorting methods
+    const ranks = await Rank.find(query)
+      .sort(sortQuery)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
       .populate('author', 'username'); // Populate author's username
+
     res.status(200).json(ranks);
   } catch (err) {
     res.status(500).json({ err: err.message });
@@ -29,10 +60,11 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // GET /ranks/:id - Get a single rank by ID
-router.get('/:rankId', verifyToken, async (req, res) => {
+router.get('/:rankId', async (req, res) => {
   try {
     const rank = await Rank.findById(req.params.rankId)
-      .populate('author', 'username');
+      .populate('author', 'username')
+      .populate('comments.author', 'username');
     if (!rank) {
       return res.status(404).json({ err: 'Rank not found.' });
     }
@@ -46,6 +78,7 @@ router.get('/:rankId', verifyToken, async (req, res) => {
 router.put('/:rankId', verifyToken, async (req, res) => {
   try {
     const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
     
     if (!rank.author.equals(req.user._id)) {
       return res.status(403).json({ err: 'Unauthorized to update this rank.' });
@@ -56,7 +89,7 @@ router.put('/:rankId', verifyToken, async (req, res) => {
       { new: true }
     );
 
-    updatedRank._doc.author = req.user;
+    await updatedRank.populate('author', 'username');
     res.status(200).json(updatedRank);
   } catch (err) {
     res.status(500).json(
@@ -69,6 +102,7 @@ router.put('/:rankId', verifyToken, async (req, res) => {
 router.delete('/:rankId', verifyToken, async (req, res) => {
   try {
     const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
 
     if (!rank.author.equals(req.user._id)) {
       return res.status(403).json({ err: 'Unauthorized to delete this rank.' });
@@ -84,7 +118,20 @@ router.delete('/:rankId', verifyToken, async (req, res) => {
 router.post('/:rankId/upvote', verifyToken, async (req, res) => {
   try {
     const rank = await Rank.findById(req.params.rankId);
-    rank.upvotes++;
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    const userId = req.user._id;
+    // Remove user from downvotes if they exist there
+    rank.downvotes.pull(userId);
+
+    // Add or remove user from upvotes (toggle)
+    const upvoteIndex = rank.upvotes.indexOf(userId);
+    if (upvoteIndex === -1) {
+      rank.upvotes.push(userId);
+    } else {
+      rank.upvotes.splice(upvoteIndex, 1);
+    }
+
     await rank.save();
     res.status(200).json(rank);
   } catch (err) {
@@ -95,7 +142,20 @@ router.post('/:rankId/upvote', verifyToken, async (req, res) => {
 router.post('/:rankId/downvote', verifyToken, async (req, res) => {
   try {
     const rank = await Rank.findById(req.params.rankId);
-    rank.downvotes++;
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    const userId = req.user._id;
+    // Remove user from upvotes if they exist there
+    rank.upvotes.pull(userId);
+
+    // Add or remove user from downvotes (toggle)
+    const downvoteIndex = rank.downvotes.indexOf(userId);
+    if (downvoteIndex === -1) {
+      rank.downvotes.push(userId);
+    } else {
+      rank.downvotes.splice(downvoteIndex, 1);
+    }
+
     await rank.save();
     res.status(200).json(rank);
   } catch (err) {
