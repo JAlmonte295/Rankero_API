@@ -29,8 +29,14 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // GET /ranks/:id - Get a single rank by ID
-router.get('/:id', async (req, res) => {
-  // Logic to get a single rank
+router.get('/:rankid', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankid)
+      .populate('author', 'username');
+      res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
 });
 
 // PUT /ranks/:id - Update a rank by ID

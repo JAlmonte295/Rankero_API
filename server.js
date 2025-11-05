@@ -31,6 +31,20 @@ app.use('/test-jwt', testJwtRouter);
 app.use('/users', usersRouter);
 app.use('/ranks', ranksRouter);
 
+const gracefulShutdown = (msg, callback) => {
+  mongoose.connection.close(() => {
+    console.log(`Mongoose disconnected through ${msg}`);
+    callback();
+  });
+};
+
+// For nodemon restarts
+process.once('SIGUSR2', () => {
+  gracefulShutdown('nodemon restart', () => {
+    process.kill(process.pid, 'SIGUSR2');
+  });
+});
+
 // Start the server and listen on port 3000
 app.listen(3000, () => {
   console.log('The express app is ready!');
