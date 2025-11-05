@@ -119,16 +119,49 @@ router.post('/:rankId/comments', verifyToken, async (req, res) => {
   }
 });
 
-// router.delete('/:rankId/comment/:commentId', verifyToken, async (req, res) => {
-//   try {
-//     const rank = await Rank.findById(req.params.rankId);
-//     const comment = rank.comments.id(req.params.commentId);
+router.put('/:rankId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
 
-//     if (!comment) {
-//       return res.status(404).json({ err: 'Comment not found.' });
-//     }
-//     if (!comment.author.equals(req.user._id)) {
+    const comment = rank.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ err: 'Comment not found.' });
 
-//     }
+    if (!comment.author.equals(req.user._id)) {
+      return res
+        .status(403)
+        .json({ err: 'Unauthorized to update this comment.' });
+    }
+
+    comment.text = req.body.text;
+    await rank.save();
+    await rank.populate('comments.author', 'username');
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+router.delete('/:rankId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    const comment = rank.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ err: 'Comment not found.' });
+
+    if (!comment.author.equals(req.user._id)) {
+      return res
+        .status(403)
+        .json({ err: 'Unauthorized to delete this comment.' });
+    }
+
+    comment.deleteOne();
+    await rank.save();
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
 
 module.exports = router;
