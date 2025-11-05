@@ -29,19 +29,40 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // GET /ranks/:id - Get a single rank by ID
-router.get('/:rankid', verifyToken, async (req, res) => {
+router.get('/:rankId', verifyToken, async (req, res) => {
   try {
-    const rank = await Rank.findById(req.params.rankid)
+    const rank = await Rank.findById(req.params.rankId)
       .populate('author', 'username');
-      res.status(200).json(rank);
+    if (!rank) {
+      return res.status(404).json({ err: 'Rank not found.' });
+    }
+    res.status(200).json(rank);
   } catch (err) {
     res.status(500).json({ err: err.message });
   }
 });
 
 // PUT /ranks/:id - Update a rank by ID
-router.put('/:id', async (req, res) => {
-  // Logic to update a rank
+router.put('/:rankId', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    
+    if (!rank.author.equals(req.user._id)) {
+      return res.status(403).json({ err: 'Unauthorized to update this rank.' });
+    }
+    const updatedRank = await Rank.findByIdAndUpdate(
+      req.params.rankId,
+      req.body,
+      { new: true }
+    );
+
+    updatedRank._doc.author = req.user;
+    res.status(200).json(updatedRank);
+  } catch (err) {
+    res.status(500).json(
+      { err: err.message }
+    )
+  }
 });
 
 // DELETE /ranks/:id - Delete a rank by ID
