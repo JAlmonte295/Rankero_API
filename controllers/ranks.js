@@ -121,18 +121,18 @@ router.post('/:rankId/upvote', verifyToken, async (req, res) => {
     if (!rank) return res.status(404).json({ err: 'Rank not found.' });
 
     const userId = req.user._id;
-    // Remove user from downvotes if they exist there
     rank.downvotes.pull(userId);
 
-    // Add or remove user from upvotes (toggle)
     const upvoteIndex = rank.upvotes.indexOf(userId);
     if (upvoteIndex === -1) {
       rank.upvotes.push(userId);
     } else {
-      rank.upvotes.splice(upvoteIndex, 1);
+      rank.upvotes.pull(userId);
     }
 
     await rank.save();
+    await rank.populate('author', 'username');
+    await rank.populate('comments.author', 'username');
     res.status(200).json(rank);
   } catch (err) {
     res.status(500).json({ err: err.message });
@@ -145,18 +145,18 @@ router.post('/:rankId/downvote', verifyToken, async (req, res) => {
     if (!rank) return res.status(404).json({ err: 'Rank not found.' });
 
     const userId = req.user._id;
-    // Remove user from upvotes if they exist there
     rank.upvotes.pull(userId);
 
-    // Add or remove user from downvotes (toggle)
     const downvoteIndex = rank.downvotes.indexOf(userId);
     if (downvoteIndex === -1) {
       rank.downvotes.push(userId);
     } else {
-      rank.downvotes.splice(downvoteIndex, 1);
+      rank.downvotes.pull(userId);
     }
 
     await rank.save();
+    await rank.populate('author', 'username');
+    await rank.populate('comments.author', 'username');
     res.status(200).json(rank);
   } catch (err) {
     res.status(500).json({ err: err.message });
@@ -218,6 +218,7 @@ router.delete('/:rankId/comments/:commentId', verifyToken, async (req, res) => {
 
     comment.deleteOne();
     await rank.save();
+    await rank.populate('comments.author', 'username');
     res.status(200).json(rank);
   } catch (err) {
     res.status(500).json({ err: err.message });
