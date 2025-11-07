@@ -33,7 +33,7 @@ const rankSchema = new mongoose.Schema(
         category: {
             type: String,
             required: true,
-            enum: ["Games", "Movies", "Television", "Music", "Books", "Food", "Sports", "Travel", "Other"]
+            enum: ["Games", "Movies", "TV Shows", "Music", "Books", "Food", "Sports", "Travel", "Other"]
         },
         title: {
             type: String,
@@ -41,7 +41,6 @@ const rankSchema = new mongoose.Schema(
         },
         description: {
             type: String,
-            required: true,
         },
         author: {
             type: mongoose.Schema.Types.ObjectId,

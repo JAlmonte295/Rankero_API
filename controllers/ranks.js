@@ -52,7 +52,7 @@ router.post('/', verifyToken, async (req, res) => {
     try {
         req.body.author = req.user._id;
         const newRank = await Rank.create(req.body);
-        newRank._doc.author = req.user;
+        await newRank.populate('author', 'username');
         res.status(201).json(newRank);
     } catch (err) {
         res.status(500).json({ err: err.message });
