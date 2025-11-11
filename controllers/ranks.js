@@ -225,4 +225,31 @@ router.delete('/:rankId/comments/:commentId', verifyToken, async (req, res) => {
   }
 });
 
+// POST /ranks/:rankId/choices/:choiceId/vote - Vote on a choice in a rank
+router.post('/:rankId/choices/:choiceId/vote', verifyToken, async (req, res) => {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    const choice = rank.list.id(req.params.choiceId);
+    if (!choice) return res.status(404).json({ err: 'Choice not found.' });
+
+    const userId = req.user._id;
+    const voteIndex = choice.votes.indexOf(userId);
+
+    if (voteIndex === -1) {
+      // If user hasn't voted, add their vote
+      choice.votes.push(userId);
+    } else {
+      // If user has already voted, remove their vote
+      choice.votes.pull(userId);
+    }
+
+    await rank.save();
+    res.status(200).json(rank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
 module.exports = router;
