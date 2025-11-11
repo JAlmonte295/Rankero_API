@@ -3,6 +3,43 @@ const verifyToken = require('../middleware/verify-token');
 const Rank = require('../models/rank');
 const router = express.Router();
 
+async function voteOnChoice(req, res) {
+  try {
+    const rank = await Rank.findById(req.params.rankId);
+    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
+
+    const choice = rank.list.id(req.params.choiceId);
+    if (!choice) return res.status(404).json({ err: 'Choice not found.' });
+
+    const userId = req.user._id;
+    const voteIndex = choice.votes.indexOf(userId);
+
+    if (req.body.vote === 'up') {
+      if (voteIndex === -1) {
+        // If user hasn't voted, add their vote
+        choice.votes.push(userId);
+      }
+    } else if (req.body.vote === 'down') {
+      if (voteIndex !== -1) {
+        // If user has already voted, remove their vote
+        choice.votes.pull(userId);
+      }
+    }
+
+    // --- FIX: Recalculate the score for the choice ---
+    choice.score = choice.votes.length;
+
+    await rank.save();
+
+    // --- FIX: Re-populate the author field before sending it back ---
+    const populatedRank = await rank.populate('author');
+
+    res.status(200).json(populatedRank);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+};
+
 // GET /ranks - Get all ranks
 router.get('/', async (req, res) => {
   try {
@@ -226,30 +263,6 @@ router.delete('/:rankId/comments/:commentId', verifyToken, async (req, res) => {
 });
 
 // POST /ranks/:rankId/choices/:choiceId/vote - Vote on a choice in a rank
-router.post('/:rankId/choices/:choiceId/vote', verifyToken, async (req, res) => {
-  try {
-    const rank = await Rank.findById(req.params.rankId);
-    if (!rank) return res.status(404).json({ err: 'Rank not found.' });
-
-    const choice = rank.list.id(req.params.choiceId);
-    if (!choice) return res.status(404).json({ err: 'Choice not found.' });
-
-    const userId = req.user._id;
-    const voteIndex = choice.votes.indexOf(userId);
-
-    if (voteIndex === -1) {
-      // If user hasn't voted, add their vote
-      choice.votes.push(userId);
-    } else {
-      // If user has already voted, remove their vote
-      choice.votes.pull(userId);
-    }
-
-    await rank.save();
-    res.status(200).json(rank);
-  } catch (err) {
-    res.status(500).json({ err: err.message });
-  }
-});
+router.post('/:rankId/choices/:choiceId/vote', verifyToken, voteOnChoice);
 
 module.exports = router;
