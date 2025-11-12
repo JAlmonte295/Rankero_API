@@ -31,6 +31,11 @@ app.use('/test-jwt', testJwtRouter);
 app.use('/users', usersRouter);
 app.use('/ranks', ranksRouter);
 
+app.get('/', (req, res) => {
+  res.send('Welcome to the Rankero API!');
+});
+
+
 const gracefulShutdown = (msg, callback) => {
   mongoose.connection.close(() => {
     console.log(`Mongoose disconnected through ${msg}`);
