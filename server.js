@@ -46,6 +46,7 @@ process.once('SIGUSR2', () => {
 });
 
 // Start the server and listen on port 3000
-app.listen(3000, () => {
-  console.log('The express app is ready!');
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`The express app is ready on port ${port}!`);
 });
