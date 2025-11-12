@@ -26,12 +26,10 @@ async function voteOnChoice(req, res) {
       }
     }
 
-    // --- FIX: Recalculate the score for the choice ---
+    // Recalculate the score for the choice
     choice.score = choice.votes.length;
 
     await rank.save();
-
-    // --- FIX: Re-populate the author field before sending it back ---
     const populatedRank = await rank.populate('author');
 
     res.status(200).json(populatedRank);
@@ -47,7 +45,7 @@ router.get('/', async (req, res) => {
 
     let query = {};
     if (search) {
-      // Create a case-insensitive regex for searching title and description
+      // Case-insensitive regex for searching title and description
       query = {
         $or: [
           { title: { $regex: search, $options: 'i' } },
@@ -56,9 +54,9 @@ router.get('/', async (req, res) => {
       };
     }
 
-    let sortQuery = { createdAt: -1 }; // Default sort: newest first
+    let sortQuery = { createdAt: -1 }; // Default sort by newest
     if (sortBy === 'upvotes') {
-      // To sort by upvotes, we use the aggregation pipeline to calculate the size of the upvotes array.
+      // For upvotes sorting, use aggregation pipeline to calculate upvote count
       const ranks = await Rank.aggregate([
         { $match: query },
         { $addFields: { upvoteCount: { $size: '$upvotes' } } },
@@ -66,17 +64,17 @@ router.get('/', async (req, res) => {
         { $skip: (page - 1) * limit },
         { $limit: parseInt(limit) },
       ]);
-      // We need to populate the author manually after aggregation
+      // Populate author manually after aggregation
       await Rank.populate(ranks, { path: 'author', select: 'username' });
       return res.status(200).json(ranks);
     }
 
-    // Standard find query for other sorting methods
+    // Standard find for other sorting methods
     const ranks = await Rank.find(query)
       .sort(sortQuery)
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .populate('author', 'username'); // Populate author's username
+      .populate('author', 'username');
 
     res.status(200).json(ranks);
   } catch (err) {
@@ -166,6 +164,8 @@ router.post('/:rankId/upvote', verifyToken, async (req, res) => {
     } else {
       rank.upvotes.pull(userId);
     }
+    rank.score = rank.upvotes.length - rank.downvotes.length;
+
 
     await rank.save();
     await rank.populate('author', 'username');
@@ -190,6 +190,7 @@ router.post('/:rankId/downvote', verifyToken, async (req, res) => {
     } else {
       rank.downvotes.pull(userId);
     }
+    rank.score = rank.upvotes.length - rank.downvotes.length;
 
     await rank.save();
     await rank.populate('author', 'username');
